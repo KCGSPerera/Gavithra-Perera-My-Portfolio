@@ -6,9 +6,9 @@ const isVercel = process.env.VERCEL === '1';
 const isProduction = process.env.NODE_ENV === 'production';
 
 const nextConfig = {
-  // Enable static optimization for better performance
-  output: isProduction ? 'export' : undefined,
-  distDir: isProduction ? 'out' : '.next',
+  // Enable static export for Vercel
+  output: 'export',
+  distDir: 'out',
   
   // Configure base path for GitHub Pages
   basePath: isGitHubPages ? process.env.GITHUB_REPOSITORY_NAME ? `/${process.env.GITHUB_REPOSITORY_NAME}` : '' : '',
