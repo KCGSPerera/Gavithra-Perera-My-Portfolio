@@ -146,8 +146,9 @@ jobs:
 
       - name: 📊 Bundle size analysis
         run: |
-          npm run build
-          echo "📦 Build completed for bundle analysis"
+          # Build static export for Lighthouse CI
+          GITHUB_PAGES=true npm run build
+          echo "📦 Static build completed for Lighthouse analysis"
           
       - name: 📈 Lighthouse CI
         uses: treosh/lighthouse-ci-action@v10

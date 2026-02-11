@@ -1,10 +1,8 @@
 module.exports = {
   ci: {
     collect: {
-      url: ['http://localhost:3000/'],
-      startServerCommand: 'npm start',
-      startServerReadyPattern: 'Ready on',
-      startServerReadyTimeout: 30000,
+      // Use static files instead of starting a server
+      staticDistDir: './out',
     },
     assert: {
       assertions: {

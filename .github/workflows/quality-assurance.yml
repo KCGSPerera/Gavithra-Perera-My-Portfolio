@@ -40,9 +40,9 @@ jobs:
       - name: 📊 Bundle analysis
         run: |
           echo "ANALYZE=true" >> $GITHUB_ENV
-          npm run build
+          GITHUB_PAGES=true npm run build
           echo "## 📦 Bundle Analysis" >> $GITHUB_STEP_SUMMARY
-          echo "Build completed successfully for bundle analysis" >> $GITHUB_STEP_SUMMARY
+          echo "Static build completed successfully for bundle analysis" >> $GITHUB_STEP_SUMMARY
 
       - name: 🧪 TypeScript strict check
         run: |
