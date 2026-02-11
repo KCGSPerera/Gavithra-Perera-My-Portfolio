@@ -1,0 +1,132 @@
+name: 🧪 Quality Assurance
+
+on:
+  schedule:
+    # Run quality checks every Monday at 8 AM UTC
+    - cron: '0 8 * * 1'
+  workflow_dispatch:
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  # Comprehensive Quality Checks
+  quality-checks:
+    name: 🔍 Quality Assessment
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🏗 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci --legacy-peer-deps --legacy-peer-deps
+
+      - name: 🔍 ESLint with detailed reporting
+        run: |
+          npx eslint . --ext ts,tsx,js,jsx --format json --output-file eslint-report.json || true
+          npx eslint . --ext ts,tsx,js,jsx --format stylish
+
+      - name: 🛡️ Security audit with detailed report
+        run: |
+          npm audit --audit-level=low --json > audit-report.json || true
+          npm audit --audit-level=moderate
+
+      - name: 📊 Bundle analysis
+        run: |
+          echo "ANALYZE=true" >> $GITHUB_ENV
+          GITHUB_PAGES=true npm run build
+          echo "## 📦 Bundle Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "Static build completed successfully for bundle analysis" >> $GITHUB_STEP_SUMMARY
+
+      - name: 🧪 TypeScript strict check
+        run: |
+          npx tsc --noEmit --strict
+          echo "✅ TypeScript strict mode check passed" >> $GITHUB_STEP_SUMMARY
+
+      - name: 📈 Lighthouse CI with artifacts
+        uses: treosh/lighthouse-ci-action@v10
+        continue-on-error: true
+        with:
+          configPath: './.lighthouserc.js'
+          temporaryPublicStorage: true
+          uploadArtifacts: true
+
+      - name: 📊 Generate quality report
+        run: |
+          echo "## 🎯 Quality Metrics Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🏗️ Build Status" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ TypeScript compilation: Passed" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ ESLint checks: $([ -s eslint-report.json ] && echo 'Issues found (see details)' || echo 'Passed')" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Security audit: $([ -s audit-report.json ] && echo 'Vulnerabilities detected' || echo 'Clean')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 Performance" >> $GITHUB_STEP_SUMMARY
+          echo "- Lighthouse scores available in artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- Bundle analysis completed" >> $GITHUB_STEP_SUMMARY
+
+      - name: 📤 Upload quality reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quality-reports
+          path: |
+            eslint-report.json
+            audit-report.json
+            .lighthouseci/
+          retention-days: 30
+
+  # Dependency Health Check
+  dependency-health:
+    name: 📦 Dependency Health
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🏗 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 📊 Check for outdated dependencies
+        run: |
+          echo "## 📦 Dependency Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          npm outdated --json > outdated.json || true
+          if [ -s outdated.json ]; then
+            echo "🟡 **Outdated packages found**" >> $GITHUB_STEP_SUMMARY
+            echo "Run \`npm outdated\` locally to see details" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **All dependencies are up to date**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: 🔍 Security vulnerability scan
+        run: |
+          npm audit --audit-level=low --json > security-audit.json || true
+          if [ -s security-audit.json ]; then
+            echo "🔴 **Security vulnerabilities detected**" >> $GITHUB_STEP_SUMMARY
+            echo "Run \`npm audit\` locally and \`npm audit fix\` to resolve" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **No security vulnerabilities found**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: 📈 License compliance check
+        run: |
+          npx license-checker --summary --onlyAllow 'MIT;Apache-2.0;BSD;ISC;0BSD;BSD-3-Clause;BSD-2-Clause' || echo "⚠️ License compliance issues detected"
+
+      - name: 📤 Upload dependency reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-reports
+          path: |
+            outdated.json
+            security-audit.json
+          retention-days: 14
