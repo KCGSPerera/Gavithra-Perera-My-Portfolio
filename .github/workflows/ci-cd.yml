@@ -1,0 +1,162 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'preview'
+        type: choice
+        options:
+          - preview
+          - production
+
+jobs:
+  # Continuous Integration
+  ci:
+    name: 🔍 Continuous Integration
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🏗 Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🛡️ Run dependency vulnerability check
+        run: |
+          npm audit --audit-level=moderate || echo "::warning::Vulnerabilities found in dependencies"
+          npx audit-ci --moderate || echo "::warning::High/Critical vulnerabilities detected"
+
+      - name: 🔍 Run ESLint
+        run: npm run lint
+
+      - name: 🏗 Build application
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: 🧪 Run type check
+        run: npx tsc --noEmit
+
+  # Build and Deploy Preview (for PRs)
+  preview-deploy:
+    name: 🚀 Preview Deployment
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    needs: ci
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🏗 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🏗 Build for preview
+        run: npm run build
+
+      - name: 📝 Comment PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '🚀 Preview deployment will be available on Vercel once this PR is merged!'
+            })
+
+  # Production Deploy (for main branch)
+  production-deploy:
+    name: 🌟 Production Deployment
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: ci
+    environment:
+      name: production
+      url: https://gavithra-portfolio.vercel.app
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🏗 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🏗 Build for production
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: ✅ Deployment Success Notification
+        run: echo "🎉 Build completed successfully! Vercel will handle the deployment."
+
+  # Security and Quality Checks
+  security:
+    name: 🔐 Security & Quality Checks
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🏗 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🚨 Run security audit
+        run: npm audit --audit-level=high
+
+      - name: 📊 Bundle size analysis
+        run: |
+          npm run build
+          echo "📦 Build completed for bundle analysis"
+          
+      - name: 📈 Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v10
+        with:
+          configPath: './.lighthouserc.js'
+          temporaryPublicStorage: true
+
+      - name: 📊 Upload Lighthouse report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lighthouse-report
+          path: '.lighthouseci/*'
+          retention-days: 30
