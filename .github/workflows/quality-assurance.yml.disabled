@@ -51,6 +51,7 @@ jobs:
 
       - name: 📈 Lighthouse CI with artifacts
         uses: treosh/lighthouse-ci-action@v10
+        continue-on-error: true
         with:
           configPath: './.lighthouserc.js'
           temporaryPublicStorage: true

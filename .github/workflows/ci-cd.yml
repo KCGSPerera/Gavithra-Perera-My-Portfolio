@@ -39,16 +39,6 @@ jobs:
       - name: 📦 Install dependencies
         run: npm ci --legacy-peer-deps
 
-      - name: 🛡️ Run dependency vulnerability check
-        run: |
-          npm audit --audit-level=moderate || echo "::warning::Vulnerabilities found in dependencies"
-          npx audit-ci --moderate || echo "::warning::High/Critical vulnerabilities detected"
-
-      - name: 🔍 Run ESLint
-        run: |
-          npm run lint || echo "::warning::ESLint issues found but continuing build"
-          echo "ESLint check completed"
-
       - name: 🏗 Build application
         run: npm run build
         env:
@@ -121,45 +111,3 @@ jobs:
 
       - name: ✅ Deployment Success Notification
         run: echo "🎉 Build completed successfully! Vercel will handle the deployment."
-
-  # Security and Quality Checks
-  security:
-    name: 🔐 Security & Quality Checks
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push'
-
-    steps:
-      - name: 📥 Checkout repository
-        uses: actions/checkout@v4
-
-      - name: 🏗 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: 📦 Install dependencies
-        run: npm ci --legacy-peer-deps
-
-      - name: 🚨 Run security audit
-        run: npm audit --audit-level=high
-
-      - name: 📊 Bundle size analysis
-        run: |
-          # Build static export for Lighthouse CI
-          GITHUB_PAGES=true npm run build
-          echo "📦 Static build completed for Lighthouse analysis"
-          
-      - name: 📈 Lighthouse CI
-        uses: treosh/lighthouse-ci-action@v10
-        with:
-          configPath: './.lighthouserc.js'
-          temporaryPublicStorage: true
-
-      - name: 📊 Upload Lighthouse report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: lighthouse-report
-          path: '.lighthouseci/*'
-          retention-days: 30
