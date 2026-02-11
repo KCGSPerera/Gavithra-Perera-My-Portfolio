@@ -6,9 +6,8 @@ const isVercel = process.env.VERCEL === '1';
 const isProduction = process.env.NODE_ENV === 'production';
 
 const nextConfig = {
-  // Enable static export for Vercel
-  output: 'export',
-  distDir: 'out',
+  // Only use static export for GitHub Pages, let Vercel handle normally
+  ...(isGitHubPages ? { output: 'export', distDir: 'out' } : {}),
   
   // Configure base path for GitHub Pages
   basePath: isGitHubPages ? process.env.GITHUB_REPOSITORY_NAME ? `/${process.env.GITHUB_REPOSITORY_NAME}` : '' : '',
@@ -21,8 +20,13 @@ const nextConfig = {
   // Image optimization settings
   images: {
     unoptimized: true,
-    // Enable for production domains
-    domains: ['gavithra-portfolio.vercel.app'],
+    // Enable for production domains using new format
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'gavithra-portfolio.vercel.app',
+      },
+    ],
   },
   
   // Enable experimental features
